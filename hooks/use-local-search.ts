@@ -23,7 +23,11 @@ interface SearchState {
   events: string[];
   error: string | null;
   projectCount: number;
+  currentPage: number;
+  totalPages: number;
 }
+
+const RESULTS_PER_PAGE = 100;
 
 export function useLocalSearch() {
   const fuseRef = useRef<Fuse<Project> | null>(null);
@@ -36,7 +40,12 @@ export function useLocalSearch() {
     events: [],
     error: null,
     projectCount: 0,
+    currentPage: 1,
+    totalPages: 1,
   });
+  
+  // Store all filtered results for pagination
+  const filteredResultsRef = useRef<Project[]>([]);
 
   // Initialize Fuse and load data
   useEffect(() => {
@@ -66,12 +75,20 @@ export function useLocalSearch() {
           minMatchCharLength: 2,
         });
 
-        // Extract unique events
+        // Extract unique events and sort by most recent
         const eventSet = new Set<string>();
         projects.forEach((p) => {
           if (p.event) eventSet.add(p.event);
         });
-        const events = Array.from(eventSet).sort().reverse();
+        // Sort events by extracting year and putting recent first
+        const events = Array.from(eventSet).sort((a, b) => {
+          // Extract year from event name (e.g., "ETHGlobal Bangkok 2024" -> 2024)
+          const yearA = parseInt(a.match(/20\d{2}/)?.[0] || "0");
+          const yearB = parseInt(b.match(/20\d{2}/)?.[0] || "0");
+          if (yearB !== yearA) return yearB - yearA;
+          // If same year, sort alphabetically reversed (later in alphabet = later in year typically)
+          return b.localeCompare(a);
+        });
 
         setState((prev) => ({
           ...prev,
@@ -95,7 +112,7 @@ export function useLocalSearch() {
 
   // Search function
   const search = useCallback(
-    (query: string, filters: { event?: string } = {}) => {
+    (query: string, filters: { event?: string; prizeWinnersOnly?: boolean } = {}, page: number = 1) => {
       if (!fuseRef.current || !projectsRef.current.length) return;
 
       setState((prev) => ({ ...prev, isLoading: true }));
@@ -106,7 +123,7 @@ export function useLocalSearch() {
 
         if (query && query.trim()) {
           // Fuzzy search with Fuse.js
-          const fuseResults = fuseRef.current!.search(query, { limit: 500 });
+          const fuseResults = fuseRef.current!.search(query, { limit: 2000 });
           results = fuseResults.map((r) => r.item);
         } else {
           // No query - return all projects (will be filtered)
@@ -118,22 +135,52 @@ export function useLocalSearch() {
           results = results.filter((p) => p.event === filters.event);
         }
 
+        // Apply prize winners filter
+        if (filters.prizeWinnersOnly) {
+          results = results.filter((p) => p.prizes && p.prizes.length > 0);
+        }
+
+        // Store all filtered results for pagination
+        filteredResultsRef.current = results;
+        
         const total = results.length;
-        results = results.slice(0, 100); // Limit to 100 for performance
+        const totalPages = Math.ceil(total / RESULTS_PER_PAGE);
+        const startIndex = (page - 1) * RESULTS_PER_PAGE;
+        const paginatedResults = results.slice(startIndex, startIndex + RESULTS_PER_PAGE);
 
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          results,
+          results: paginatedResults,
           totalResults: total,
+          currentPage: page,
+          totalPages,
         }));
       }, 0);
     },
     []
   );
 
+  // Go to specific page
+  const goToPage = useCallback((page: number) => {
+    const total = filteredResultsRef.current.length;
+    const totalPages = Math.ceil(total / RESULTS_PER_PAGE);
+    
+    if (page < 1 || page > totalPages) return;
+    
+    const startIndex = (page - 1) * RESULTS_PER_PAGE;
+    const paginatedResults = filteredResultsRef.current.slice(startIndex, startIndex + RESULTS_PER_PAGE);
+    
+    setState((prev) => ({
+      ...prev,
+      results: paginatedResults,
+      currentPage: page,
+    }));
+  }, []);
+
   return {
     ...state,
     search,
+    goToPage,
   };
 }

@@ -16,6 +16,7 @@ interface SearchFormProps {
   onSearch: (params: {
     keyword: string;
     event?: string;
+    prizeWinnersOnly?: boolean;
   }) => void;
   isLoading?: boolean;
   isInitializing?: boolean;
@@ -25,6 +26,7 @@ interface SearchFormProps {
 export function SearchForm({ onSearch, isLoading, isInitializing, events = [] }: SearchFormProps) {
   const [keyword, setKeyword] = useState("");
   const [event, setEvent] = useState<string>("");
+  const [prizeWinnersOnly, setPrizeWinnersOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -33,13 +35,14 @@ export function SearchForm({ onSearch, isLoading, isInitializing, events = [] }:
     onSearch({
       keyword: keyword.trim(),
       event: event || undefined,
+      prizeWinnersOnly,
     });
   };
 
   const handleQuickSearch = (query: string) => {
     if (isInitializing) return;
     setKeyword(query);
-    onSearch({ keyword: query, event: event || undefined });
+    onSearch({ keyword: query, event: event || undefined, prizeWinnersOnly });
   };
 
   const quickSearches = [
@@ -101,18 +104,21 @@ export function SearchForm({ onSearch, isLoading, isInitializing, events = [] }:
           >
             <Filter className="h-4 w-4 mr-2" />
             Filters
-            {event && (
+            {(event || prizeWinnersOnly) && (
               <span className="ml-2 px-1.5 py-0.5 bg-primary/20 text-primary rounded text-xs">
-                1
+                {(event ? 1 : 0) + (prizeWinnersOnly ? 1 : 0)}
               </span>
             )}
           </Button>
-          {event && (
+          {(event || prizeWinnersOnly) && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setEvent("")}
+              onClick={() => {
+                setEvent("");
+                setPrizeWinnersOnly(false);
+              }}
               className="text-muted-foreground"
             >
               <X className="h-4 w-4 mr-1" />
@@ -140,6 +146,18 @@ export function SearchForm({ onSearch, isLoading, isInitializing, events = [] }:
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="prizeWinnersOnly"
+                checked={prizeWinnersOnly}
+                onChange={(e) => setPrizeWinnersOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-border bg-secondary accent-primary"
+              />
+              <label htmlFor="prizeWinnersOnly" className="text-sm text-foreground cursor-pointer">
+                Only show prize winners
+              </label>
             </div>
           </div>
         )}

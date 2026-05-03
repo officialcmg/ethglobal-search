@@ -16,24 +16,36 @@ export default function Home() {
     events,
     error: initError,
     projectCount,
+    currentPage,
+    totalPages,
     search,
+    goToPage,
   } = useLocalSearch();
 
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [lastKeyword, setLastKeyword] = useState("");
+  const [lastFilters, setLastFilters] = useState<{ event?: string; prizeWinnersOnly?: boolean }>({});
 
   const handleSearch = (params: {
     keyword: string;
     event?: string;
+    prizeWinnersOnly?: boolean;
   }) => {
     if (!isInitialized) return;
     
     setIsSearching(true);
     setHasSearched(true);
     setLastKeyword(params.keyword);
+    setLastFilters({ event: params.event, prizeWinnersOnly: params.prizeWinnersOnly });
     
-    search(params.keyword, { event: params.event });
+    search(params.keyword, { event: params.event, prizeWinnersOnly: params.prizeWinnersOnly });
+  };
+
+  const handlePageChange = (page: number) => {
+    goToPage(page);
+    // Scroll to top of results
+    window.scrollTo({ top: 400, behavior: "smooth" });
   };
 
   // Stop searching state when results come in
@@ -83,6 +95,9 @@ export default function Home() {
               error={initError}
               hasSearched={hasSearched}
               keyword={lastKeyword}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
             />
           </div>
         </section>
