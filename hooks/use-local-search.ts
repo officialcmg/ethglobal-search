@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Fuse from "fuse.js";
 
 export interface Project {
   title: string;
@@ -25,7 +26,8 @@ interface SearchState {
 }
 
 export function useLocalSearch() {
-  const workerRef = useRef<Worker | null>(null);
+  const fuseRef = useRef<Fuse<Project> | null>(null);
+  const projectsRef = useRef<Project[]>([]);
   const [state, setState] = useState<SearchState>({
     isLoading: true,
     isInitialized: false,
@@ -36,92 +38,98 @@ export function useLocalSearch() {
     projectCount: 0,
   });
 
-  // Initialize worker and load data
+  // Initialize Fuse and load data
   useEffect(() => {
-    // Create worker
-    workerRef.current = new Worker("/search-worker.js");
-
-    // Handle messages from worker
-    workerRef.current.onmessage = (e) => {
-      const { type, payload } = e.data;
-
-      switch (type) {
-        case "INIT_COMPLETE":
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            isInitialized: true,
-            projectCount: payload,
-          }));
-          // Get events after initialization
-          workerRef.current?.postMessage({ type: "GET_EVENTS" });
-          break;
-
-        case "SEARCH_RESULTS":
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            results: payload.results,
-            totalResults: payload.total,
-          }));
-          break;
-
-        case "EVENTS":
-          setState((prev) => ({
-            ...prev,
-            events: payload,
-          }));
-          break;
-      }
-    };
-
-    workerRef.current.onerror = (error) => {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: "Failed to initialize search. Please refresh the page.",
-      }));
-      console.error("Worker error:", error);
-    };
-
-    // Fetch and load projects data
     const loadData = async () => {
       try {
         const response = await fetch("/projects.json");
         if (!response.ok) throw new Error("Failed to fetch projects");
 
         const data = await response.json();
-        workerRef.current?.postMessage({ type: "INIT", payload: data });
+        
+        // Handle both array and {projects: []} format
+        const projects: Project[] = Array.isArray(data) ? data : data.projects || [];
+        
+        projectsRef.current = projects;
+
+        // Initialize Fuse.js
+        fuseRef.current = new Fuse(projects, {
+          keys: [
+            { name: "title", weight: 0.4 },
+            { name: "tagline", weight: 0.3 },
+            { name: "description", weight: 0.2 },
+            { name: "how_its_made", weight: 0.1 },
+          ],
+          threshold: 0.4,
+          ignoreLocation: true,
+          includeScore: true,
+          minMatchCharLength: 2,
+        });
+
+        // Extract unique events
+        const eventSet = new Set<string>();
+        projects.forEach((p) => {
+          if (p.event) eventSet.add(p.event);
+        });
+        const events = Array.from(eventSet).sort().reverse();
+
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isInitialized: true,
+          projectCount: projects.length,
+          events,
+        }));
       } catch (error) {
+        console.error("[v0] Failed to load projects:", error);
         setState((prev) => ({
           ...prev,
           isLoading: false,
           error: "Failed to load project data. Please refresh the page.",
         }));
-        console.error("Failed to load projects:", error);
       }
     };
 
     loadData();
-
-    // Cleanup
-    return () => {
-      workerRef.current?.terminate();
-    };
   }, []);
 
   // Search function
   const search = useCallback(
     (query: string, filters: { event?: string } = {}) => {
-      if (!workerRef.current || !state.isInitialized) return;
+      if (!fuseRef.current || !projectsRef.current.length) return;
 
       setState((prev) => ({ ...prev, isLoading: true }));
-      workerRef.current.postMessage({
-        type: "SEARCH",
-        payload: { query, filters },
-      });
+
+      // Use setTimeout to prevent blocking UI
+      setTimeout(() => {
+        let results: Project[];
+
+        if (query && query.trim()) {
+          // Fuzzy search with Fuse.js
+          const fuseResults = fuseRef.current!.search(query, { limit: 500 });
+          results = fuseResults.map((r) => r.item);
+        } else {
+          // No query - return all projects (will be filtered)
+          results = [...projectsRef.current];
+        }
+
+        // Apply event filter
+        if (filters.event && filters.event !== "all") {
+          results = results.filter((p) => p.event === filters.event);
+        }
+
+        const total = results.length;
+        results = results.slice(0, 100); // Limit to 100 for performance
+
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          results,
+          totalResults: total,
+        }));
+      }, 0);
     },
-    [state.isInitialized]
+    []
   );
 
   return {
