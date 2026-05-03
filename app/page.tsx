@@ -103,7 +103,7 @@ export default function Home() {
             </a>
           </p>
           <p className="text-xs text-muted-foreground/60">
-            API rate limited to 10 requests/min (shared across all users)
+            API currently rate limited to 10 requests/min (shared across all users)
           </p>
         </div>
       </footer>
