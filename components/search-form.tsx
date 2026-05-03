@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Sparkles, Filter, X } from "lucide-react";
+import { Search, Sparkles, Filter, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EVENTS } from "@/lib/ethglobal-api";
 import {
   Select,
   SelectContent,
@@ -17,28 +16,33 @@ interface SearchFormProps {
   onSearch: (params: {
     keyword: string;
     event?: string;
-    sponsor?: string;
+    prizeWinnersOnly?: boolean;
   }) => void;
   isLoading?: boolean;
+  isInitializing?: boolean;
+  events?: string[];
 }
 
-export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
+export function SearchForm({ onSearch, isLoading, isInitializing, events = [] }: SearchFormProps) {
   const [keyword, setKeyword] = useState("");
   const [event, setEvent] = useState<string>("");
+  const [prizeWinnersOnly, setPrizeWinnersOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!keyword.trim() && !event) return;
+    if (isInitializing) return;
     onSearch({
       keyword: keyword.trim(),
       event: event || undefined,
+      prizeWinnersOnly,
     });
   };
 
   const handleQuickSearch = (query: string) => {
+    if (isInitializing) return;
     setKeyword(query);
-    onSearch({ keyword: query });
+    onSearch({ keyword: query, event: event || undefined, prizeWinnersOnly });
   };
 
   const quickSearches = [
@@ -59,19 +63,25 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Describe your idea... e.g. 'AI agent for DeFi trading'"
+            placeholder={isInitializing ? "Loading project database..." : "Describe your idea... e.g. 'AI agent for DeFi trading'"}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
+            disabled={isInitializing}
             className="pl-12 pr-24 h-14 text-base bg-card border-border focus-visible:ring-primary"
           />
           <Button
             type="submit"
-            disabled={isLoading || (!keyword.trim() && !event)}
+            disabled={isLoading || isInitializing}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            {isLoading ? (
+            {isInitializing ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin">⟳</span>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading
+              </span>
+            ) : isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Searching
               </span>
             ) : (
@@ -86,25 +96,29 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant={event || prizeWinnersOnly ? "default" : "outline"}
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className="text-muted-foreground border-border hover:bg-secondary"
+            disabled={isInitializing}
+            className={event || prizeWinnersOnly ? "bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" : "text-muted-foreground border-border hover:bg-secondary"}
           >
             <Filter className="h-4 w-4 mr-2" />
             Filters
-            {event && (
-              <span className="ml-2 px-1.5 py-0.5 bg-primary/20 text-primary rounded text-xs">
-                1
+            {(event || prizeWinnersOnly) && (
+              <span className="ml-2 px-2 py-0.5 bg-white/20 text-white rounded font-medium text-xs">
+                {(event ? 1 : 0) + (prizeWinnersOnly ? 1 : 0)}
               </span>
             )}
           </Button>
-          {event && (
+          {(event || prizeWinnersOnly) && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setEvent("")}
+              onClick={() => {
+                setEvent("");
+                setPrizeWinnersOnly(false);
+              }}
               className="text-muted-foreground"
             >
               <X className="h-4 w-4 mr-1" />
@@ -125,13 +139,25 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
                   <SelectItem value="all">All events</SelectItem>
-                  {EVENTS.map((e) => (
+                  {events.map((e) => (
                     <SelectItem key={e} value={e}>
                       {e}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="prizeWinnersOnly"
+                checked={prizeWinnersOnly}
+                onChange={(e) => setPrizeWinnersOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-border bg-secondary accent-primary"
+              />
+              <label htmlFor="prizeWinnersOnly" className="text-sm text-foreground cursor-pointer">
+                Only show prize winners
+              </label>
             </div>
           </div>
         )}
@@ -143,8 +169,8 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
           <button
             key={query}
             onClick={() => handleQuickSearch(query)}
-            disabled={isLoading}
-            className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-full transition-colors border border-border hover:border-primary/50"
+            disabled={isLoading || isInitializing}
+            className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-full transition-colors border border-border hover:border-primary/50 disabled:opacity-50"
           >
             {query}
           </button>
