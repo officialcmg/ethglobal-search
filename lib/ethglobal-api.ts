@@ -1,5 +1,3 @@
-const BASE_URL = "https://ethglobalskills.vercel.app";
-
 export interface Project {
   title: string;
   url: string;
@@ -14,27 +12,6 @@ export interface Project {
 
 export interface ProjectsResponse {
   projects: Project[];
-}
-
-export interface SponsorsResponse {
-  sponsors: string[];
-}
-
-export interface Prize {
-  title: string;
-  description?: string;
-  qualifications?: string;
-}
-
-export interface PrizeResult {
-  name: string;
-  about?: string;
-  docs?: { name: string; url: string }[];
-  prizes: Prize[];
-}
-
-export interface PrizesResponse {
-  results: PrizeResult[];
 }
 
 export async function searchProjects(params: {
@@ -54,42 +31,13 @@ export async function searchProjects(params: {
   if (params.limit) searchParams.set("limit", params.limit.toString());
   if (params.include) searchParams.set("include", params.include);
 
-  const response = await fetch(`${BASE_URL}/api/projects?${searchParams.toString()}`);
+  // Use local API route to avoid CORS issues
+  const response = await fetch(`/api/search?${searchParams.toString()}`);
   
   if (!response.ok) {
     if (response.status === 402) {
       throw new Error("Rate limit exceeded. The API allows 10 free requests per minute.");
     }
-    throw new Error(`API error: ${response.status}`);
-  }
-  
-  return response.json();
-}
-
-export async function getSponsors(keyword?: string): Promise<SponsorsResponse> {
-  const searchParams = new URLSearchParams();
-  if (keyword) searchParams.set("keyword", keyword);
-  
-  const response = await fetch(`${BASE_URL}/api/sponsors?${searchParams.toString()}`);
-  
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-  
-  return response.json();
-}
-
-export async function getPrizes(params: {
-  event?: string;
-  sponsor?: string;
-}): Promise<PrizesResponse> {
-  const searchParams = new URLSearchParams();
-  if (params.event) searchParams.set("event", params.event);
-  if (params.sponsor) searchParams.set("sponsor", params.sponsor);
-  
-  const response = await fetch(`${BASE_URL}/api/prizes?${searchParams.toString()}`);
-  
-  if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }
   

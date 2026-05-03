@@ -29,7 +29,21 @@ export function Header() {
               className="border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
             >
               <Github className="h-4 w-4 mr-2" />
-              View API
+              API
+            </Button>
+          </a>
+          <a
+            href="https://github.com/officialcmg/ethglobal-search"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Github className="h-5 w-5" />
+              <span className="sr-only">View source on GitHub</span>
             </Button>
           </a>
         </div>
