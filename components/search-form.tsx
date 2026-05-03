@@ -96,16 +96,16 @@ export function SearchForm({ onSearch, isLoading, isInitializing, events = [] }:
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant={event || prizeWinnersOnly ? "default" : "outline"}
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
             disabled={isInitializing}
-            className="text-muted-foreground border-border hover:bg-secondary"
+            className={event || prizeWinnersOnly ? "bg-primary hover:bg-primary/90 text-primary-foreground font-semibold" : "text-muted-foreground border-border hover:bg-secondary"}
           >
             <Filter className="h-4 w-4 mr-2" />
             Filters
             {(event || prizeWinnersOnly) && (
-              <span className="ml-2 px-1.5 py-0.5 bg-primary/20 text-primary rounded text-xs">
+              <span className="ml-2 px-2 py-0.5 bg-white/20 text-white rounded font-medium text-xs">
                 {(event ? 1 : 0) + (prizeWinnersOnly ? 1 : 0)}
               </span>
             )}
