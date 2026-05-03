@@ -1,12 +1,14 @@
 "use client";
 
 import { ProjectCard } from "./project-card";
-import type { Project } from "@/lib/ethglobal-api";
-import { Search, Frown, Loader2 } from "lucide-react";
+import type { Project } from "@/hooks/use-local-search";
+import { Search, Frown, Loader2, Database } from "lucide-react";
 
 interface SearchResultsProps {
   projects: Project[];
+  totalResults: number;
   isLoading: boolean;
+  isInitializing: boolean;
   error: string | null;
   hasSearched: boolean;
   keyword: string;
@@ -14,17 +16,36 @@ interface SearchResultsProps {
 
 export function SearchResults({
   projects,
+  totalResults,
   isLoading,
+  isInitializing,
   error,
   hasSearched,
   keyword,
 }: SearchResultsProps) {
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <div className="relative">
+          <Database className="h-12 w-12 text-primary animate-pulse" />
+          <Loader2 className="h-6 w-6 animate-spin text-primary absolute -bottom-1 -right-1" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-foreground font-medium">Loading project database...</p>
+          <p className="text-muted-foreground text-sm">
+            Downloading 17,180+ projects for local search
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">
-          Searching 17,180+ hackathon projects...
+          Searching projects...
         </p>
       </div>
     );
@@ -38,7 +59,7 @@ export function SearchResults({
         </div>
         <p className="text-destructive font-medium">{error}</p>
         <p className="text-muted-foreground text-sm">
-          Try again in a moment or adjust your search
+          Try refreshing the page
         </p>
       </div>
     );
@@ -88,9 +109,9 @@ export function SearchResults({
         <p className="text-muted-foreground">
           Found{" "}
           <span className="text-foreground font-semibold">
-            {projects.length}
+            {totalResults > 100 ? `100+ (showing 100 of ${totalResults})` : totalResults}
           </span>{" "}
-          similar {projects.length === 1 ? "project" : "projects"}
+          similar {totalResults === 1 ? "project" : "projects"}
           {keyword && (
             <>
               {" "}

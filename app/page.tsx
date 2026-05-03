@@ -1,45 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/header";
 import { SearchForm } from "@/components/search-form";
 import { SearchResults } from "@/components/search-results";
 import { Stats } from "@/components/stats";
-import { searchProjects, type Project } from "@/lib/ethglobal-api";
+import { useLocalSearch, type Project } from "@/hooks/use-local-search";
 
 export default function Home() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    isLoading: isInitializing,
+    isInitialized,
+    results,
+    totalResults,
+    events,
+    error: initError,
+    projectCount,
+    search,
+  } = useLocalSearch();
+
+  const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [lastKeyword, setLastKeyword] = useState("");
 
-  const handleSearch = async (params: {
+  const handleSearch = (params: {
     keyword: string;
     event?: string;
-    sponsor?: string;
   }) => {
-    setIsLoading(true);
-    setError(null);
+    if (!isInitialized) return;
+    
+    setIsSearching(true);
     setHasSearched(true);
     setLastKeyword(params.keyword);
-
-    try {
-      const result = await searchProjects({
-        keyword: params.keyword || undefined,
-        event: params.event === "all" ? undefined : params.event,
-        sponsor: params.sponsor,
-        limit: 50,
-        include: "description",
-      });
-      setProjects(result.projects);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to search projects");
-      setProjects([]);
-    } finally {
-      setIsLoading(false);
-    }
+    
+    search(params.keyword, { event: params.event });
   };
+
+  // Stop searching state when results come in
+  useEffect(() => {
+    if (hasSearched && !isInitializing) {
+      setIsSearching(false);
+    }
+  }, [results, isInitializing, hasSearched]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -55,13 +57,18 @@ export default function Home() {
                 <span className="text-primary">built before?</span>
               </h1>
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-pretty">
-                Search across 17,180+ ETHGlobal hackathon projects to see if
+                Search across {projectCount > 0 ? projectCount.toLocaleString() : "17,180"}+ ETHGlobal hackathon projects to see if
                 your idea has been explored before, find inspiration, or
                 discover opportunities to build something new.
               </p>
             </div>
 
-            <SearchForm onSearch={handleSearch} isLoading={isLoading} />
+            <SearchForm 
+              onSearch={handleSearch} 
+              isLoading={isSearching || isInitializing}
+              isInitializing={isInitializing}
+              events={events}
+            />
           </div>
         </section>
 
@@ -69,9 +76,11 @@ export default function Home() {
         <section className="pb-16 px-4">
           <div className="container mx-auto max-w-5xl">
             <SearchResults
-              projects={projects}
-              isLoading={isLoading}
-              error={error}
+              projects={results}
+              totalResults={totalResults}
+              isLoading={isSearching}
+              isInitializing={isInitializing}
+              error={initError}
               hasSearched={hasSearched}
               keyword={lastKeyword}
             />
@@ -79,10 +88,10 @@ export default function Home() {
         </section>
 
         {/* Stats Section - only show if no search yet */}
-        {!hasSearched && (
+        {!hasSearched && !isInitializing && (
           <section className="pb-16 px-4">
             <div className="container mx-auto">
-              <Stats />
+              <Stats projectCount={projectCount} />
             </div>
           </section>
         )}
@@ -92,18 +101,18 @@ export default function Home() {
       <footer className="border-t border-border py-8 px-4">
         <div className="container mx-auto text-center space-y-3">
           <p className="text-sm text-muted-foreground">
-            Powered by{" "}
+            Data sourced from{" "}
             <a
               href="https://github.com/ethglobal-skills/repo"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              ETHGlobal Skills API
+              ETHGlobal Skills
             </a>
           </p>
           <p className="text-xs text-muted-foreground/60">
-            API currently rate limited to 10 requests/min (shared across all users)
+            Searching locally - no API rate limits
           </p>
         </div>
       </footer>
