@@ -90,7 +90,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border py-8 px-4">
-        <div className="container mx-auto text-center space-y-2">
+        <div className="container mx-auto text-center space-y-3">
           <p className="text-sm text-muted-foreground">
             Powered by{" "}
             <a
@@ -101,6 +101,9 @@ export default function Home() {
             >
               ETHGlobal Skills API
             </a>
+          </p>
+          <p className="text-xs text-muted-foreground/60">
+            API currently rate limited to 10 requests/min (shared across all users)
           </p>
         </div>
       </footer>
