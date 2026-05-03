@@ -102,9 +102,6 @@ export default function Home() {
               ETHGlobal Skills API
             </a>
           </p>
-          <p className="text-xs text-muted-foreground">
-            10 free requests per minute • $0.05 USDC per request after via x402
-          </p>
         </div>
       </footer>
     </div>
